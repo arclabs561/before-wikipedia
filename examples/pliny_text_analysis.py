@@ -3,9 +3,9 @@
 # requires-python = ">=3.11"
 # ///
 """
-Text analysis of Pliny's Natural History, demonstrating concepts from
-textprep (normalization, tokenization), slabs (chunking), and gramdex
-(trigram fuzzy matching). Pure stdlib -- no external deps.
+Text analysis of Pliny's Natural History, demonstrating text preprocessing
+(normalization, tokenization), chunking, and trigram fuzzy matching.
+Pure stdlib -- no external deps.
 """
 
 from __future__ import annotations
@@ -14,10 +14,6 @@ import re
 import unicodedata
 from collections import Counter
 from pathlib import Path
-
-# ---------------------------------------------------------------------------
-# 1. Text preprocessing (textprep concepts)
-# ---------------------------------------------------------------------------
 
 TEXT_PATH = Path(__file__).resolve().parent.parent / "natural-history.djvu.txt"
 
@@ -52,7 +48,7 @@ def load_text() -> str:
 
 
 def scrub(text: str) -> str:
-    """Normalize text to a canonical form (textprep.scrub concept).
+    """Normalize text to a canonical form.
 
     NFC normalization, case folding, diacritics stripping, whitespace collapse.
     """
@@ -72,7 +68,7 @@ def scrub(text: str) -> str:
 
 
 def words(text: str) -> list[str]:
-    """Tokenize into words (textprep.tokenize.words concept).
+    """Tokenize into words.
 
     Splits on non-alphabetic boundaries, drops short tokens.
     """
@@ -80,7 +76,7 @@ def words(text: str) -> list[str]:
 
 
 def sentences(text: str) -> list[str]:
-    """Split into sentences (textprep.tokenize.sentences concept)."""
+    """Split into sentences."""
     raw = re.split(r"(?<=[.!?])\s+", text.strip())
     return [s.strip() for s in raw if len(s.strip()) > 10]
 
@@ -91,7 +87,7 @@ word_tokens = words(normalized)
 vocab = sorted(set(word_tokens))
 
 print("=" * 60)
-print("1. TEXT PREPROCESSING (textprep concepts)")
+print("1. TEXT PREPROCESSING")
 print("=" * 60)
 print(f"   Raw text length:  {len(raw):,} chars")
 print(f"   Normalized length: {len(normalized):,} chars")
@@ -100,20 +96,16 @@ print(f"   Vocabulary size:   {len(vocab):,}")
 print(f"   Sample (first 12): {word_tokens[:12]}")
 print()
 
-# ---------------------------------------------------------------------------
-# 2. Chunking (slabs concepts)
-# ---------------------------------------------------------------------------
-
 CHUNK_SIZE_WORDS = 80
 
 
 def chunk_fixed(tokens: list[str], size: int) -> list[list[str]]:
-    """Fixed-size word chunks (slabs FixedChunker concept)."""
+    """Fixed-size word chunks."""
     return [tokens[i : i + size] for i in range(0, len(tokens), size)]
 
 
 def chunk_sentences(text: str, max_words: int) -> list[str]:
-    """Sentence-based chunking (slabs SentenceChunker concept).
+    """Sentence-based chunking.
 
     Greedily packs sentences until the word budget is reached.
     """
@@ -137,7 +129,7 @@ fixed_chunks = chunk_fixed(word_tokens, CHUNK_SIZE_WORDS)
 sentence_chunks = chunk_sentences(raw, CHUNK_SIZE_WORDS)
 
 print("=" * 60)
-print("2. CHUNKING (slabs concepts)")
+print("2. CHUNKING")
 print("=" * 60)
 print(f"   Fixed chunks ({CHUNK_SIZE_WORDS} words each): {len(fixed_chunks)}")
 print(f"   Sentence chunks (max {CHUNK_SIZE_WORDS} words): {len(sentence_chunks)}")
@@ -148,13 +140,8 @@ if sentence_chunks:
     print(f"   Sentence chunk 0 preview: {preview}...")
 print()
 
-# ---------------------------------------------------------------------------
-# 3. Fuzzy matching (gramdex concepts)
-# ---------------------------------------------------------------------------
-
-
 def char_trigrams(s: str) -> set[str]:
-    """Generate character trigrams (gramdex.char_trigrams concept)."""
+    """Generate character trigrams."""
     s = s.lower()
     if len(s) < 3:
         return {s}
@@ -162,15 +149,15 @@ def char_trigrams(s: str) -> set[str]:
 
 
 def trigram_jaccard(a: str, b: str) -> float:
-    """Trigram Jaccard similarity (gramdex.trigram_jaccard concept)."""
+    """Trigram Jaccard similarity."""
     ta, tb = char_trigrams(a), char_trigrams(b)
     if not ta or not tb:
         return 0.0
     return len(ta & tb) / len(ta | tb)
 
 
-class GramDex:
-    """Trigram inverted index for candidate generation (gramdex.GramDex concept)."""
+class TrigramIndex:
+    """Trigram inverted index for candidate generation."""
 
     def __init__(self) -> None:
         self._index: dict[str, set[int]] = {}
@@ -201,7 +188,7 @@ class GramDex:
 
 
 # Build index over vocabulary
-ix = GramDex()
+ix = TrigramIndex()
 for i, term in enumerate(vocab):
     ix.add(i, term)
 
@@ -218,7 +205,7 @@ QUERIES = [
 ]
 
 print("=" * 60)
-print("3. FUZZY MATCHING (gramdex concepts)")
+print("3. FUZZY MATCHING (trigram index)")
 print("=" * 60)
 print(f"   Index size: {len(vocab)} terms")
 print()
@@ -229,13 +216,9 @@ for query, desc in QUERIES:
     print(f"     -> {match_str}")
 print()
 
-# ---------------------------------------------------------------------------
-# 4. Analysis
-# ---------------------------------------------------------------------------
-
 freq = Counter(word_tokens)
 
-# Stopwords (textprep provides these; here we inline a small set)
+# Common English stopwords (inlined for zero-dependency)
 STOPWORDS = frozenset(
     "the of and in to it is that by as are this which not there he "
     "was for with his from but or be at an on had all its they were "
